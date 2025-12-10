@@ -3,9 +3,33 @@ import sys
 import os
 
 
-def blur_faces_in_image(input_path, output_path, blur_strength=55):
+def pixelate_face(face_roi, pixel_size=8):
     """
-    Blur all detected faces in a single image and save result.
+    Strong pixelation effect by heavy downscaling and upscaling.
+    Smaller pixel_size = stronger pixelation.
+    """
+    h, w = face_roi.shape[:2]
+
+    # Shrink image drastically
+    face_small = cv2.resize(
+        face_roi,
+        (pixel_size, pixel_size),
+        interpolation=cv2.INTER_LINEAR
+    )
+
+    # Blow it back up with nearest-neighbor (blocky look)
+    face_pixelated = cv2.resize(
+        face_small,
+        (w, h),
+        interpolation=cv2.INTER_NEAREST
+    )
+
+    return face_pixelated
+
+
+def blur_faces_in_image(input_path, output_path, mode="blur", blur_strength=55):
+    """
+    Blur or pixelate all detected faces in a single image and save result.
     """
     img = cv2.imread(input_path)
     if img is None:
@@ -14,7 +38,6 @@ def blur_faces_in_image(input_path, output_path, blur_strength=55):
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    # Use OpenCV's built-in Haar Cascade face detector
     face_cascade = cv2.CascadeClassifier(
         cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
     )
@@ -28,33 +51,34 @@ def blur_faces_in_image(input_path, output_path, blur_strength=55):
 
     print(f"[INFO] Detected {len(faces)} face(s) in '{os.path.basename(input_path)}'.")
 
-    # Ensure blur kernel size is odd
+    # Ensure blur kernel is odd
     if blur_strength % 2 == 0:
         blur_strength += 1
 
     for (x, y, w, h) in faces:
         face_roi = img[y:y + h, x:x + w]
 
-        # Stronger Gaussian blur
-        face_roi = cv2.GaussianBlur(
-            face_roi,
-            (blur_strength, blur_strength),
-            0
-        )
+        if mode == "pixelate":
+            face_roi = pixelate_face(face_roi, pixel_size=6)  # VERY strong
+        else:
+            face_roi = cv2.GaussianBlur(
+                face_roi,
+                (blur_strength, blur_strength),
+                0
+            )
 
         img[y:y + h, x:x + w] = face_roi
 
     cv2.imwrite(output_path, img)
-    print(f"[INFO] Saved blurred image to '{output_path}'.")
+    print(f"[INFO] Saved result to '{output_path}'.")
 
 
-def process_path(input_path, output_path):
+def process_path(input_path, output_path, mode):
     """
-    If input_path is a file: blur that one image.
-    If input_path is a folder: blur all images inside and save them to output_path folder.
+    If input_path is a file: process one image.
+    If input_path is a folder: process all images.
     """
     if os.path.isdir(input_path):
-        # Folder mode
         if not os.path.exists(output_path):
             os.makedirs(output_path)
 
@@ -74,31 +98,34 @@ def process_path(input_path, output_path):
         for filename in files:
             in_file = os.path.join(input_path, filename)
             out_file = os.path.join(output_path, filename)
-            blur_faces_in_image(in_file, out_file)
+            blur_faces_in_image(in_file, out_file, mode=mode)
 
         print("[INFO] Done processing folder.")
     else:
-        # Single file mode
-        blur_faces_in_image(input_path, output_path)
+        blur_faces_in_image(input_path, output_path, mode=mode)
 
 
 def main():
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 4:
         print("Usage:")
-        print("  python face_blur.py input_path output_path")
+        print("  python face_blur.py input_path output_path mode")
         print("")
-        print("Where:")
-        print("  input_path  = single image file OR folder with images")
-        print("  output_path = output image file (if input is file)")
-        print("                OR folder to save blurred images (if input is folder)")
+        print("Modes:")
+        print("  blur       = Gaussian blur")
+        print("  pixelate   = Strong pixelation")
         sys.exit(1)
 
     input_path = sys.argv[1]
     output_path = sys.argv[2]
+    mode = sys.argv[3].lower()
 
-    process_path(input_path, output_path)
+    if mode not in ["blur", "pixelate"]:
+        print("[ERROR] Mode must be either 'blur' or 'pixelate'")
+        sys.exit(1)
+
+    process_path(input_path, output_path, mode)
 
 
 if __name__ == "__main__":
     main()
-
+    
