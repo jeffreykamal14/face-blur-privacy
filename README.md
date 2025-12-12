@@ -31,16 +31,17 @@ face-blur-privacy demonstrates the use of:
 ## How to Run the Program
 
 Blur All Images in a Folder:
-python face_blur.py images_raw images_blurred
+python face_blur.py images_raw images_blurred blur
 
 Pixelate All Images in a Folder:
-python face_blur.py images_raw images_pixelated pixel
+python face_blur.py images_raw images_pixelated pixelate
 
 Blur a Single Image:
-python face_blur.py people.jpg people_blurred.jpg
+python face_blur.py images_raw/people.jpg images_blurred/people_blurred.jpg blur
+
 
 Pixelate a Single Image:
-python face_blur.py people.jpg people_pixelated.jpg pixel
+python face_blur.py images_raw/people1.jpg images_pixelated/people_pixelated.jpg pixelate
 
 ---
 
